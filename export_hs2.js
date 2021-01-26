@@ -5,18 +5,17 @@ const nightmare = Nightmare({
     gotoTimeout: 60000, // in ms or 1 minute 
  })
 const global_delay_ms = 20000;
-const mysql = require('mysql');
-const connection = mysql.createConnection({
-    host: "159.65.128.190",
-    user: "export",
-    password: "export_123456",
-    database: "export"
-});
-connection.connect();
-console.log("Connected!");
+// const mysql = require('mysql');
+// const connection = mysql.createConnection({
+//     host: "127.0.0.1",
+//     user: "export",
+//     password: "export",
+//     database: "export"
+// });
+// connection.connect();
+// console.log("Connected!");
 const fs = require('fs');
 var hs2 = [];
-var hs4 = [];
 var remaining_hs2 = [];
 
 async function getHS2(){            
@@ -74,44 +73,17 @@ async function config(){
 }
 
 async function loadStatus(){
-    let status = JSON.parse(fs.readFileSync("export_hs4_status.json").toString('utf8'));
+    let status = JSON.parse(fs.readFileSync("export_hs2_status.json").toString('utf8'));
     console.log(status);
 
     remaining_hs2 = [...hs2].filter(code => !status[code]);
     console.log("Remaining HS2 : ", remaining_hs2);
 }
 
-async function getHS4(hs2code){
-    let success = true;
-    await nightmare
-        .select('#ctl00_NavigationControl_DropDownList_Product', hs2code)                     
-        .wait(global_delay_ms)     
-        .wait('#ctl00_PageContent_MyGridView1') 
-        .evaluate(() => {        
-            let product = document.querySelector('#ctl00_NavigationControl_DropDownList_Product');
-            let indexes = [];
-            for (let i = 0; i < product.length; i++) {
-                if(Number(product.options[i].value)>100){
-                    indexes.push(""+product.options[i].value);
-                }
-            }
-            return indexes;
-        })
-        .then(function(product_indexes){       
-            hs4 = product_indexes;
-            console.log("Get HS4" , hs4);
-        })
-        .catch(error => {
-            console.error('Get HS4 failed:', error)
-            success = false;
-        });
-    return success;
-}
-
 async function extract(code){
     let success = true;
-    if(code.length != 4 ) {
-        console.error('Select HS4 failed:')
+    if(code.length != 2 ) {
+        console.error('Select HS2 failed:')
         return false;
     }
     await nightmare
@@ -143,10 +115,10 @@ async function extract(code){
                 // connection.query(sql, data, function (err, result) {
                 //     if (err) throw err;
                 // });                
-                let filename = "html_hs4/"+data[0] + ".json";
+                let filename = "html_hs2/"+data[0] + ".json";
                 fs.writeFileSync(filename, JSON.stringify(data));
 
-                console.error('Extract HS4 : ', data[0])
+                console.error('Extract HS2 : ', data[0])
             }
 
             if(data[4] != 300 || data[5] != 20){
@@ -155,7 +127,7 @@ async function extract(code){
 
         })
         .catch(error => {
-            console.error('Extract HS4 failed:', error)
+            console.error('Extract HS2 failed:', error)
             success = false;
         });
     return success;
@@ -172,19 +144,22 @@ async function extract(code){
     while(true){
         //3. Load Status
         await loadStatus();
-        //4. SELECT unfinished HS2 and get HS4
+        //4. SELECT unfinished HS2 and get HS2
         if(remaining_hs2.length > 0){
             let selected_hs = remaining_hs2[0];
-            await getHS4(selected_hs);
-            let count=0;
 
-            for(let item of hs4){
-                if( await extract(item) ) count++;
-            }
+
+            // await getHS4(selected_hs);
+            // let count=0;
+
+            // for(let item of hs4){
+            //     if( await extract(item) ) count++;
+            // }            
+
             //UPDATE STATUS
-            if(count == hs4.length){
+            if(await extract(selected_hs)){
                 //LOAD
-                let filename = "export_hs4_status.json";
+                let filename = "export_hs2_status.json";
                 let data  = JSON.parse(fs.readFileSync(filename));            
                 //UPDATE
                 data[selected_hs]  = true;
@@ -192,7 +167,7 @@ async function extract(code){
                 fs.writeFileSync(filename, JSON.stringify(data));
                 console.error('SUCCESS : ', selected_hs);
                 
-                await getHS4(selected_hs);
+                // await getHS4(selected_hs);
             }
 
         }else{

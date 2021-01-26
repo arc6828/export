@@ -5,15 +5,16 @@ const nightmare = Nightmare({
     gotoTimeout: 60000, // in ms or 1 minute 
  })
 const global_delay_ms = 20000;
-const mysql = require('mysql');
-const connection = mysql.createConnection({
-    host: "159.65.128.190",
-    user: "export",
-    password: "export_123456",
-    database: "export"
-});
-connection.connect();
-console.log("Connected!");
+// const mysql = require('mysql');
+// const connection = mysql.createConnection({
+//     host: "127.0.0.1",
+//     user: "export",
+//     password: "export",
+//     database: "export"
+// });
+// connection.connect();
+// console.log("Connected!");
+
 const fs = require('fs');
 var hs2 = [];
 var hs4 = [];
