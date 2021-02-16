@@ -1,20 +1,11 @@
 const Nightmare = require('nightmare')
 const nightmare = Nightmare({ 
     show: true,
-    waitTimeout: 60000, // in ms or 1 minute 
-    gotoTimeout: 60000, // in ms or 1 minute 
+    waitTimeout: 30000, // in ms or 1 minute 
+    gotoTimeout: 30000, // in ms or 1 minute 
  })
 const global_delay_ms = 20000;
-// const mysql = require('mysql');
-// const connection = mysql.createConnection({
-//     host: "127.0.0.1",
-//     user: "export",
-//     password: "export",
-//     database: "export"
-// });
-// connection.connect();
-// console.log("Connected!");
-
+const mode = "import"; // import or export
 const fs = require('fs');
 var hs2 = [];
 var hs4 = [];
@@ -41,6 +32,30 @@ async function getHS2(){
         })
         .catch(error => {
             console.error('Get HS2 failed:', error)
+            success = false;
+        });
+    //CHOOSE MODE         
+    console.log("Config : "+(mode=="export"?"E":"I"));
+    await nightmare
+        .select('#ctl00_NavigationControl_DropDownList_TradeType', ""+(mode=="export"?"E":"I"))
+        // .select('#ctl00_NavigationControl_DropDownList_TradeType', "I")
+        .wait(global_delay_ms)  
+        //.wait('#ctl00_PageContent_MyGridView1')
+        .evaluate(() => {                    
+            let title = document.querySelector('#ctl00_TitleContent');
+            //PACK NEEDED DATA 
+            return  title.textContent.trim();
+        })
+        .then(function(data){           
+            if(data.includes(mode)){    
+                console.log("Select Trade Type : " ,data);
+            }else{            
+                console.log('Wrong page : 404 : ',data)
+                success = false;
+            }
+        })
+        .catch(error => {
+            console.error('Select Trade Type :', error)
             success = false;
         });
     return success;
@@ -75,7 +90,7 @@ async function config(){
 }
 
 async function loadStatus(){
-    let status = JSON.parse(fs.readFileSync("export_hs4_status.json").toString('utf8'));
+    let status = JSON.parse(fs.readFileSync(mode+"_hs2_status.json").toString('utf8'));
     console.log(status);
 
     remaining_hs2 = [...hs2].filter(code => !status[code]);
@@ -144,7 +159,7 @@ async function extract(code){
                 // connection.query(sql, data, function (err, result) {
                 //     if (err) throw err;
                 // });                
-                let filename = "html_hs4/"+data[0] + ".json";
+                let filename = "html_hs4/"+mode+"/"+data[0] + ".json";
                 fs.writeFileSync(filename, JSON.stringify(data));
 
                 console.error('Extract HS4 : ', data[0])
@@ -164,7 +179,10 @@ async function extract(code){
 
 (async function (){
     //1. Get HS2
-    await getHS2();
+    while(true){
+        let s = await getHS2();
+        if(s) break;
+    }
 
     //2. Config
     await config();
@@ -185,7 +203,7 @@ async function extract(code){
             //UPDATE STATUS
             if(count == hs4.length){
                 //LOAD
-                let filename = "export_hs4_status.json";
+                let filename = mode+"_hs4_status.json";
                 let data  = JSON.parse(fs.readFileSync(filename));            
                 //UPDATE
                 data[selected_hs]  = true;

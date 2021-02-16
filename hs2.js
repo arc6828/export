@@ -1,8 +1,8 @@
 const Nightmare = require('nightmare')
 const nightmare = Nightmare({ 
     show: true,
-    waitTimeout: 60000, // in ms or 1 minute 
-    gotoTimeout: 60000, // in ms or 1 minute 
+    waitTimeout: 30000, // in ms or 1 minute 
+    gotoTimeout: 30000, // in ms or 1 minute 
  })
 const global_delay_ms = 20000;
 const mode = "import"; // import or export
@@ -12,6 +12,7 @@ var remaining_hs2 = [];
 
 async function getHS2(){            
     let success = true;
+    //GO TO TARGET PAGE
     await nightmare
         .goto('https://www.trademap.org/Country_SelProduct_TS.aspx')
         .wait('#ctl00_PageContent_MyGridView1')
@@ -33,23 +34,34 @@ async function getHS2(){
             console.error('Get HS2 failed:', error)
             success = false;
         });
-    return success;
-}
-async function config(){       
-    let success = true;
     //CHOOSE MODE         
     console.log("Config : "+(mode=="export"?"E":"I"));
     await nightmare
-        .select('#ctl00_NavigationControl_DropDownList_TradeType', ""+(mode=="export"?"E":"I"))      
+        .select('#ctl00_NavigationControl_DropDownList_TradeType', ""+(mode=="export"?"E":"I"))
+        // .select('#ctl00_NavigationControl_DropDownList_TradeType', "I")
         .wait(global_delay_ms)  
-        .wait('#ctl00_PageContent_MyGridView1')
-        .then(function(){            
-            console.log("Select Trade Type");
+        //.wait('#ctl00_PageContent_MyGridView1')
+        .evaluate(() => {                    
+            let title = document.querySelector('#ctl00_TitleContent');
+            //PACK NEEDED DATA 
+            return  title.textContent.trim();
+        })
+        .then(function(data){           
+            if(data.includes(mode)){    
+                console.log("Select Trade Type : " ,data);
+            }else{            
+                console.log('Wrong page : 404 : ',data)
+                success = false;
+            }
         })
         .catch(error => {
             console.error('Select Trade Type :', error)
             success = false;
         });
+    return success;
+}
+async function config(){       
+    let success = true;    
     //CHOOSE TIMEPEROIDS PER PAGE     
     await nightmare
         .select('#ctl00_PageContent_GridViewPanelControl_DropDownList_NumTimePeriod', '20')      
@@ -136,7 +148,10 @@ async function extract(code){
 
 (async function (){
     //1. Get HS2
-    await getHS2();
+    while(true){
+        let s = await getHS2();
+        if(s) break;
+    }
 
     //2. Config
     await config();
