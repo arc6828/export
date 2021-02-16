@@ -1,1 +1,1 @@
-node export_hs2.js
+node hs2.js
